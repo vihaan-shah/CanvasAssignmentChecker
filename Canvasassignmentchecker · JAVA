@@ -1,0 +1,174 @@
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.LocalDate;
+import java.time.ZonedDateTime;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.io.IOException;
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+/**
+ * Canvas Assignment Checker
+ * 
+ * A Java program that checks your Canvas LMS assignments and shows which ones
+ * are due today and whether they've been submitted.
+ * 
+ * @author Your Name
+ * @version 1.0
+ */
+public class CanvasAssignmentChecker {
+    
+    // Canvas URL - UPDATE THIS with your school's Canvas URL
+    private static final String CANVAS_URL = "https://canvas.instructure.com";
+    
+    // API token will be loaded from file
+    private static String API_TOKEN;
+    
+    public static void main(String[] args) {
+        try {
+            // Check if API token file path was provided
+            if (args.length == 0) {
+                System.err.println("Error: Please provide the path to your API token file");
+                System.err.println("Usage: java CanvasAssignmentChecker <path-to-token-file>");
+                System.err.println("\nExample: java CanvasAssignmentChecker canvas_token.txt");
+                System.exit(1);
+            }
+            
+            // Load API token from file
+            String tokenFilePath = args[0];
+            try {
+                API_TOKEN = Files.readString(Paths.get(tokenFilePath)).trim();
+                if (API_TOKEN.isEmpty()) {
+                    System.err.println("Error: Token file is empty");
+                    System.exit(1);
+                }
+            } catch (IOException e) {
+                System.err.println("Error: Could not read token file at " + tokenFilePath);
+                System.err.println("Make sure the file exists and you have permission to read it");
+                System.exit(1);
+            }
+            
+            System.out.println("=== Canvas Assignment Checker ===");
+            System.out.println("Checking assignments for: " + LocalDate.now());
+            System.out.println();
+            
+            // Get all active courses
+            JSONArray courses = getActiveCourses();
+            
+            boolean hasUnsubmitted = false;
+            
+            // Check each course for today's assignments
+            for (int i = 0; i < courses.length(); i++) {
+                JSONObject course = courses.getJSONObject(i);
+                String courseName = course.getString("name");
+                int courseId = course.getInt("id");
+                
+                // Get assignments for this course
+                JSONArray assignments = getAssignments(courseId);
+                
+                // Check for assignments due today
+                for (int j = 0; j < assignments.length(); j++) {
+                    JSONObject assignment = assignments.getJSONObject(j);
+                    
+                    if (isDueToday(assignment)) {
+                        String assignmentName = assignment.getString("name");
+                        boolean isSubmitted = checkIfSubmitted(courseId, assignment.getInt("id"));
+                        
+                        if (!isSubmitted) {
+                            System.out.println("❌ NOT SUBMITTED: " + courseName + " - " + assignmentName);
+                            hasUnsubmitted = true;
+                        } else {
+                            System.out.println("✅ SUBMITTED: " + courseName + " - " + assignmentName);
+                        }
+                    }
+                }
+            }
+            
+            System.out.println();
+            if (!hasUnsubmitted) {
+                System.out.println("🎉 All assignments due today have been submitted!");
+            } else {
+                System.out.println("⚠️  You have unsubmitted assignments due today!");
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error checking assignments: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Retrieves all active courses for the current user
+     */
+    private static JSONArray getActiveCourses() throws Exception {
+        String endpoint = CANVAS_URL + "/api/v1/courses?enrollment_state=active";
+        String response = makeAPIRequest(endpoint);
+        return new JSONArray(response);
+    }
+    
+    /**
+     * Retrieves all assignments for a specific course
+     */
+    private static JSONArray getAssignments(int courseId) throws Exception {
+        String endpoint = CANVAS_URL + "/api/v1/courses/" + courseId + "/assignments";
+        String response = makeAPIRequest(endpoint);
+        return new JSONArray(response);
+    }
+    
+    /**
+     * Checks if an assignment has been submitted
+     */
+    private static boolean checkIfSubmitted(int courseId, int assignmentId) throws Exception {
+        String endpoint = CANVAS_URL + "/api/v1/courses/" + courseId + 
+                         "/assignments/" + assignmentId + "/submissions/self";
+        String response = makeAPIRequest(endpoint);
+        JSONObject submission = new JSONObject(response);
+        
+        // Check if the assignment has been submitted
+        String workflowState = submission.optString("workflow_state", "");
+        return workflowState.equals("submitted") || workflowState.equals("graded");
+    }
+    
+    /**
+     * Checks if an assignment is due today
+     */
+    private static boolean isDueToday(JSONObject assignment) {
+        try {
+            if (assignment.isNull("due_at")) {
+                return false;
+            }
+            
+            String dueAtStr = assignment.getString("due_at");
+            ZonedDateTime dueDate = ZonedDateTime.parse(dueAtStr);
+            LocalDate dueDateLocal = dueDate.toLocalDate();
+            
+            return dueDateLocal.equals(LocalDate.now());
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Makes an HTTP GET request to the Canvas API
+     */
+    private static String makeAPIRequest(String endpoint) throws Exception {
+        HttpClient client = HttpClient.newHttpClient();
+        
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(endpoint))
+                .header("Authorization", "Bearer " + API_TOKEN)
+                .GET()
+                .build();
+        
+        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        
+        if (response.statusCode() != 200) {
+            throw new Exception("API request failed with status: " + response.statusCode());
+        }
+        
+        return response.body();
+    }
+}
