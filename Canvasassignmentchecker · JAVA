@@ -16,7 +16,7 @@ import org.json.JSONObject;
  * A Java program that checks your Canvas LMS assignments and shows which ones
  * are due today and whether they've been submitted.
  * 
- * @author Your Name
+ * @author Vihaan Shah
  * @version 1.0
  */
 public class CanvasAssignmentChecker {
