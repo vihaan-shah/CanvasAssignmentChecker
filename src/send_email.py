@@ -10,8 +10,29 @@ Requirements: Python 3.x (built-in libraries only)
 
 import smtplib
 import sys
+import json
+import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+def load_config(config_file="config.json"):
+    """Load configuration from JSON file."""
+    if not os.path.exists(config_file):
+        print(f"ERROR: Config file '{config_file}' not found!")
+        print(f"Please copy config.example.json to config.json and configure it.")
+        sys.exit(1)
+    
+    with open(config_file, 'r') as f:
+        return json.load(f)
+
+def load_secret(file_path):
+    """Load secret from file."""
+    if not os.path.exists(file_path):
+        print(f"ERROR: Secret file '{file_path}' not found!")
+        sys.exit(1)
+    
+    with open(file_path, 'r') as f:
+        return f.read().strip()
 
 def send_email(subject, body, to_emails, gmail_user, gmail_app_password):
     """
@@ -34,7 +55,7 @@ def send_email(subject, body, to_emails, gmail_user, gmail_app_password):
     
     msg = MIMEMultipart()
     msg['From'] = gmail_user
-    msg['To'] = ', '.join(to_emails)  # Join multiple emails with commas
+    msg['To'] = ', '.join(to_emails)
     msg['Subject'] = subject
     
     msg.attach(MIMEText(body, 'plain'))
@@ -44,7 +65,7 @@ def send_email(subject, body, to_emails, gmail_user, gmail_app_password):
         server.starttls()
         server.login(gmail_user, gmail_app_password)
         text = msg.as_string()
-        server.sendmail(gmail_user, to_emails, text)  # Send to all recipients
+        server.sendmail(gmail_user, to_emails, text)
         server.quit()
         print(f"Email sent successfully to {len(to_emails)} recipient(s)!")
         return True
@@ -53,34 +74,22 @@ def send_email(subject, body, to_emails, gmail_user, gmail_app_password):
         return False
 
 if __name__ == "__main__":
+    # Load configuration
+    config = load_config("config.json")
+    
+    # Load secrets from files
+    gmail_user = config['email']['gmailUser']
+    gmail_app_password = load_secret(config['email']['appPasswordFilePath'])
+    to_emails = config['email']['recipients']
+    
     # Read canvas output from stdin
     canvas_output = sys.stdin.read()
-    
-    # Gmail credentials - CONFIGURE THESE BEFORE USE
-    # Generate an App Password at: https://myaccount.google.com/apppasswords
-    GMAIL_USER = "vihaan.m.shah@gmail.com"  # Your Gmail address
-    GMAIL_APP_PASSWORD = "uassgqregnzzaldy"  # 16-character Gmail App Password
-    
-    # Recipients - can be a single email or a list of multiple emails
-    TO_EMAILS = [
-        "vihaan.m.shah@gmail.com",      # Your email
-        "maushah@gmail.com",        # Additional recipient 1
-        "rachshah20@gmail.com"         # Additional recipient 2
-    ]
-    # Or for a single recipient, use: TO_EMAILS = "your-email@gmail.com"
-    
-    # Validate configuration
-    if GMAIL_USER != "vihaan.m.shah@gmail.com" or GMAIL_APP_PASSWORD != "uassgqregnzzaldy":
-        print("ERROR: Please configure your Gmail credentials in send_email.py")
-        print("See README.md for setup instructions")
-        sys.exit(1)
     
     # Send the email
     send_email(
         subject="Canvas Assignment Check - Daily Report",
         body=canvas_output,
-        to_emails=TO_EMAILS,
-        gmail_user=GMAIL_USER,
-        gmail_app_password=GMAIL_APP_PASSWORD
+        to_emails=to_emails,
+        gmail_user=gmail_user,
+        gmail_app_password=gmail_app_password
     )
-

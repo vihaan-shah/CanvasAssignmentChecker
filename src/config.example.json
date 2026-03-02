@@ -1,0 +1,15 @@
+{
+  "canvas": {
+    "url": "https://esuhsd.instructure.com",
+    "tokenFilePath": "./canvas_token.txt"
+  },
+  "email": {
+    "gmailUser": "your-email@gmail.com",
+    "appPasswordFilePath": "./gmail_app_password.txt",
+    "recipients": [
+      "recipient1@gmail.com",
+      "recipient2@gmail.com"
+    ]
+  },
+  "timezone": "America/Los_Angeles"
+}
