@@ -1,4 +1,11 @@
-### IntelliJ IDEA ###
+src/canvas_token.txt
+src/gmail_app_password.txt
+src/config.json
+*.class
+.DS_Store
+.idea/
+*.iml
+out/### IntelliJ IDEA ###
 out/
 !**/src/main/**/out/
 !**/src/test/**/out/
